@@ -102,24 +102,24 @@ def recommend():
 
 
 # ⭐ Book Rating Route
-@app.route('/rate_book', methods=['POST'])
-def rate_book():
-    book_title = request.form['book_title']
-    user_rating = float(request.form['user_rating'])
+# @app.route('/rate_book', methods=['POST'])
+# def rate_book():
+#     book_title = request.form['book_title']
+#     user_rating = float(request.form['user_rating'])
 
-    # Append new rating to the DataFrame
-    new_rating = pd.DataFrame({"Book-Title": [book_title], "User-Rating": [user_rating]})
-    global user_ratings
-    user_ratings = pd.concat([user_ratings, new_rating], ignore_index=True)
+#     # Append new rating to the DataFrame
+#     new_rating = pd.DataFrame({"Book-Title": [book_title], "User-Rating": [user_rating]})
+#     global user_ratings
+#     user_ratings = pd.concat([user_ratings, new_rating], ignore_index=True)
 
-    # Save ratings to CSV
-    user_ratings.to_csv(ratings_file, index=False)
+#     # Save ratings to CSV
+#     user_ratings.to_csv(ratings_file, index=False)
 
-    return redirect(request.referrer)  # Reload the page after rating submission
+#     return redirect(request.referrer)  # Reload the page after rating submission
 
-@app.route('/contact')
-def contact():
-    return render_template('contact.html')
+# @app.route('/contact')
+# def contact():
+#     return render_template('contact.html')
 
 # @app.route('/submit_contact', methods=['POST'])
 # def submit_contact():
