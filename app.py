@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, url_for, flash
 import pickle
 import numpy as np
 import pandas as pd
@@ -6,6 +6,7 @@ import os
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = "Kw@814936"
 
 # Load pickled data
 popular_df = pickle.load(open('popular.pkl', 'rb'))
@@ -46,7 +47,6 @@ def index():
 def recommend_ui():
     return render_template('recommend.html')
 
-# 🔍 Book Recommendation Logic
 @app.route('/recommend_books', methods=['POST'])
 def recommend():
     title_input = request.form.get('title')
@@ -55,35 +55,51 @@ def recommend():
 
     data = []
 
-    # Filter based on book title
+    # 📚 Recommend based on book title
     if title_input and title_input in pt.index:
         index = np.where(pt.index == title_input)[0][0]
-        similar_items = sorted(list(enumerate(similarity_scores[index])), key=lambda x: x[1], reverse=True)[1:6]
+        similar_items = sorted(list(enumerate(similarity_scores[index])), key=lambda x: x[1], reverse=True)[1:9]
 
         for i in similar_items:
-            item = []
-            temp_df = books[books['Book-Title'] == pt.index[i[0]]]
-            item.extend(list(temp_df.drop_duplicates('Book-Title')['Book-Title'].values))
-            item.extend(list(temp_df.drop_duplicates('Book-Title')['Book-Author'].values))
-            item.extend(list(temp_df.drop_duplicates('Book-Title')['Image-URL-M'].values))
-            data.append(item)
+            temp_df = books[books['Book-Title'] == pt.index[i[0]]].drop_duplicates('Book-Title')
 
-    # Filter based on author
+            title = temp_df['Book-Title'].values[0]
+            author = temp_df['Book-Author'].values[0]
+            image = temp_df['Image-URL-M'].values[0]
+
+            # Get votes & rating
+            book_details = popular_df[popular_df['Book-Title'] == title]
+            votes = int(book_details['num_ratings'].values[0]) if not book_details.empty else 0
+            rating = float(book_details['avg_rating'].values[0]) if not book_details.empty else 0
+
+            data.append([title, author, image, votes, rating])
+
+    # 👤 Recommend based on author
     if author_input:
-        author_books = books[books['Book-Author'].str.contains(author_input, case=False, na=False)].head(5)
+        author_books = books[books['Book-Author'].str.contains(author_input, case=False, na=False)].drop_duplicates('Book-Title').head(8)
         for _, row in author_books.iterrows():
-            data.append([row['Book-Title'], row['Book-Author'], row['Image-URL-M']])
+            title, author, image = row['Book-Title'], row['Book-Author'], row['Image-URL-M']
+            book_details = popular_df[popular_df['Book-Title'] == title]
+            votes = int(book_details['num_ratings'].values[0]) if not book_details.empty else 0
+            rating = float(book_details['avg_rating'].values[0]) if not book_details.empty else 0
+            data.append([title, author, image, votes, rating])
 
-    # Filter based on genre (if available)
+    # 🎭 Recommend based on genre
     if genre_input and 'Genre' in books.columns:
-        genre_books = books[books['Genre'].str.contains(genre_input, case=False, na=False)].head(5)
+        genre_books = books[books['Genre'].str.contains(genre_input, case=False, na=False)].drop_duplicates('Book-Title').head(8)
         for _, row in genre_books.iterrows():
-            data.append([row['Book-Title'], row['Book-Author'], row['Image-URL-M']])
+            title, author, image = row['Book-Title'], row['Book-Author'], row['Image-URL-M']
+            book_details = popular_df[popular_df['Book-Title'] == title]
+            votes = int(book_details['num_ratings'].values[0]) if not book_details.empty else 0
+            rating = float(book_details['avg_rating'].values[0]) if not book_details.empty else 0
+            data.append([title, author, image, votes, rating])
 
     # Remove duplicates
     data = list(map(list, {tuple(i) for i in data}))
 
     return render_template('recommend.html', data=data)
+
+
 
 # ⭐ Book Rating Route
 @app.route('/rate_book', methods=['POST'])
@@ -100,6 +116,46 @@ def rate_book():
     user_ratings.to_csv(ratings_file, index=False)
 
     return redirect(request.referrer)  # Reload the page after rating submission
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+# @app.route('/submit_contact', methods=['POST'])
+# def submit_contact():
+#     name = request.form.get('name')
+#     email = request.form.get('email')
+#     message = request.form.get('message')
+
+#     if not name or not email or not message:
+#         flash('All fields are required!', 'danger')
+#         return redirect(url_for('contact'))
+
+#     # Here, you can save the data to a database or send an email
+
+#     flash('Your message has been sent successfully!', 'success')
+#     return redirect(url_for('contact'))
+
+import csv
+
+@app.route('/submit_contact', methods=['POST'])
+def submit_contact():
+    name = request.form.get('name')
+    email = request.form.get('email')
+    message = request.form.get('message')
+
+    if not name or not email or not message:
+        flash('All fields are required!', 'danger')
+        return redirect(url_for('contact'))
+
+    # Save the contact message to a CSV file
+    with open("contact_messages.csv", "a", newline='', encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow([name, email, message])
+
+    flash('Your message has been sent successfully!', 'success')
+    return redirect(url_for('contact'))
+
 
 # Run the Flask App
 if __name__ == '__main__':
